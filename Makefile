@@ -1,0 +1,1 @@
+include source/targets/sparky2/Makefile
