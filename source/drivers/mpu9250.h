@@ -73,16 +73,16 @@
 #error  Wrong Gyro range
 #endif
 
-#if (GYRO_RATE == 2000)
+#if (LOOP_RATE == 2000)
 #define CYCLE_TIME            (0.00005f)
 #define MICROS_PER_LOOP       500
-#elif (GYRO_RATE == 1000)
+#elif (LOOP_RATE == 1000)
 #define CYCLE_TIME            (0.0001f)
 #define MICROS_PER_LOOP       1000
-#elif (GYRO_RATE == 500)
+#elif (LOOP_RATE == 500)
 #define CYCLE_TIME            (0.0002f)
 #define MICROS_PER_LOOP       2000
-#elif (GYRO_RATE == 250)
+#elif (LOOP_RATE == 250)
 #define CYCLE_TIME            (0.0004f)
 #define MICROS_PER_LOOP       4000
 #else

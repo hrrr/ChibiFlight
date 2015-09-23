@@ -333,7 +333,7 @@ bool GetMPUData(void)
       AddGyroEntry();
     }
 #endif
-  if ((SampleCounter%4)==0)
+  if ((SampleCounter%SAMPLES_PER_LOOP)==0)
     return TRUE;
   else
     return FALSE;

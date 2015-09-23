@@ -50,10 +50,14 @@
 
 /* GYRO */
 #define GYRO_LPF              GYRO_LPF_3600
-// Gyro sampling rate. This is also the update rat to the motors
+// Gyro sampling rate.
+#define GYRO_RATE             8000               // in herz
+// This is the update rate to the motors
 // Equivalent to loop time in Multiwii or cleanfligh
-#define GYRO_RATE             2000               // in herz
+#define LOOP_RATE             2000
 #define GYRO_RANGE            GYRO_RANGE_2000
+
+#define SAMPLES_PER_LOOP    (GYRO_RATE/LOOP_RATE)
 
 #define PID_R_P_0    18
 #define PID_R_I_0    10
@@ -90,19 +94,6 @@
 #define PID_Y_P_2    35
 #define PID_Y_I_2    10
 #define PID_Y_D_2     0
-#if 0
-#define PID_R_P_2    25
-#define PID_R_I_2    15
-#define PID_R_D_2    30
-
-#define PID_P_P_2    25
-#define PID_P_I_2    15
-#define PID_P_D_2    30
-
-#define PID_Y_P_2    40
-#define PID_Y_I_2    10
-#define PID_Y_D_2    20
-#endif
 /* TARGET MAX RATES */
 // THROTTLE_MIN_PID is the minimal throttle given to the motors when armed
 #define THROTTLE_MIN_PID      (132 * CLK_PER_MICRO)
