@@ -2,8 +2,9 @@
 # Flashing
 
 Flash using the debug port:
-
+```
 st-flash write build/ChibiFlight_Sparky2.bin 0x08000000
+```
 
 # Failsave
 
