@@ -13,14 +13,21 @@ A basic failsve handling is implemented. The copter will disarm automatically if
 
 Use a spektrum satellite bound to your transmitter, connected to the receiver port in Sparky2.
 Connect the motors in the same order as in Cleanflight, that is:
-
+```
 4 2
 3 1
+```
 
 Edit config.h and change
-'#define DEBUG_MODE       FALSE'
+```
+#define DEBUG_MODE       FALSE
+```
+
 to
-'#define DEBUG_MODE       TRUE'
+```
+#define DEBUG_MODE       TRUE
+```
+
 
 Compile and flash the board.
 
@@ -31,12 +38,14 @@ Power on your transmitter.
 
 You should see something like:
 
+```
 Ch1:  00C7 Ch2:  0400 Ch3:  0401 Ch4:  0400 Ch5:  06AA Ch6:  06AA Ch7:  0400 
 Ch8:  0400 Ch9:  0400 Ch10: 0400 Ch11: FFFF Ch12: FFFF Ch13: FFFF Ch14: FFFF 
 TARGET Throttle: 125 Roll: 0 Pitch: 0 Yaw: 0 Aux1: 888 Aux2: 888
 GYRO Roll: 0 Pitch: 0 Yaw: 0
 motor FL : 125 FR: 125
 motor RL : 125 RR : 125
+```
 
 Ch1 to Ch14: Raw inputs from your transmitter. Actually only 6 channels supported.
 Target: Target set from your current transmitter sticks.
@@ -62,11 +71,12 @@ The other channels are not used in the current firmware.
 
 Target: Your inputs from the transmitter are mapped to a throttel position and rotation rates in degrees/second.
 the maximal rotation rates are defined in config.h:
-
+```
 // Rates in degrees/second
-'#define ROLL_RATE             500'
-'#define PITCH_RATE            500'
-'#define YAW_RATE              400'
+#define ROLL_RATE             500
+#define PITCH_RATE            500
+#define YAW_RATE              400
+```
 
 Move your transmitter sticks arround and check the throttel range goes from 125 to 250 and the rotation rates according to the defines in config.h. Mapping from transmitter sticks to rotation rates is linear, add expo in your transmitter if desired.
 
