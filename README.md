@@ -1,6 +1,6 @@
 # ChibiFlight
 
-ChibiFlight is basic, experimetal flight cotroller software for quadcopters.
+ChibiFlight is basic, small, experimetal, acro-only flight cotroller software for quadcopters.
 
 Restrictions:
 
@@ -11,4 +11,8 @@ Restrictions:
 
 There is no setup utility. Everything is fixed at compilation.
 
-More details on how to configure and use will follow soon
+Important: ChibiFlight is very experimetal. Use at your own risk.
+
+Chibilfight is very uncorfortable to use. It is very far from being plug and play. It is definetly not for you if you don't know what is c-compiler and are not used to compile and debug c-code.
+
+Check the 'doc' directory for instructions.

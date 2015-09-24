@@ -216,7 +216,7 @@ static void AddLogEntry(void)
 #endif
 
 #if DEBUG_MODE
-#if 1
+#if CH_DBG_THREADS_PROFILING
 void cmd_threads(BaseSequentialStream *chp)
   {
     static const char *states[] = {CH_STATE_NAMES};
@@ -229,16 +229,13 @@ void cmd_threads(BaseSequentialStream *chp)
     TotalTime = 0;
     do
       {
-#if CH_DBG_THREADS_PROFILING
         TotalTime += (uint32_t) tp->p_time;
-#endif
         tp = chRegNextThread(tp);
       }
     while (tp != NULL);
     tp = chRegFirstThread();
     do
       {
-#if CH_DBG_THREADS_PROFILING
         chprintf(
             chp,
             "%.10lx\t\t%.10lx\t%6lu\t%6lu\t%11s\t%7lu\t%17.15s\t%d\t%d\t%d \r\n",
@@ -247,7 +244,6 @@ void cmd_threads(BaseSequentialStream *chp)
             (uint32_t) tp->p_time, (uint32_t) tp->p_name, TotalTime,
             (uint32_t) ((((float) (tp->p_time)) / ((float) (TotalTime))) * 100),
             chVTGetSystemTime());
-#endif
         tp = chRegNextThread(tp);
       }
     while (tp != NULL);
@@ -255,8 +251,8 @@ void cmd_threads(BaseSequentialStream *chp)
 #endif
 static void outputmotors(BaseSequentialStream *chp)
   {
-    chprintf(chp, "motor FL : %u FR: %u\r\n", motor[3],motor[1]);
-    chprintf(chp, "motor RL : %u RR : %u\r\n", motor[2],motor[0]);
+    chprintf(chp, "motor FL : %u FR: %u\r\n", motor[3]/CLK_PER_MICRO,motor[1]/CLK_PER_MICRO);
+    chprintf(chp, "motor RL : %u RR : %u\r\n", motor[2]/CLK_PER_MICRO,motor[0]/CLK_PER_MICRO);
   }
 
 static THD_WORKING_AREA(waThread3, 1024);
@@ -285,12 +281,14 @@ static void Thread3(void *arg)
             chprintf(
                 (BaseSequentialStream*) &SDU1,
                 "TARGET Throttle: %i Roll: %i Pitch: %i Yaw: %i Aux1: %i Aux2: %i\n",
-                RCTarget[0], RCTarget[1], RCTarget[2],
+                RCTarget[0]/CLK_PER_MICRO, RCTarget[1], RCTarget[2],
                 RCTarget[3], RCTarget[4], RCTarget[5]);
             chprintf((BaseSequentialStream*) &SDU1, "GYRO Roll: %d Pitch: %d Yaw: %d\n",
                      GyroData[ROLL], GyroData[PITCH], GyroData[YAW]);
             outputmotors((BaseSequentialStream*) &SDU1);
+#if CH_DBG_THREADS_PROFILING
             cmd_threads((BaseSequentialStream*) &SDU1);
+#endif
           }
       }
   }
@@ -606,7 +604,7 @@ static THD_FUNCTION(MPUThread, p)
 
 #endif
               if (LocalRCTarget[THROTTLE_CH]==THROTTLE_MIN)
-                LocalRCTarget[RUDDER_CH]=0;
+                LocalRCTarget[RUDDER_CH]=0;   // Disable YAW while arming / Disarming
               pid(&LocalRCTarget[ROLL_CH]);   // Calculate PIDs
               MixTable(LocalRCTarget);        // Calculate Motor outputs
 #if LOG
