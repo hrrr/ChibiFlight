@@ -18,9 +18,9 @@ Connect the motors in the same order as in Cleanflight, that is:
 3 1
 
 Edit config.h and change
-#define DEBUG_MODE       FALSE
+'#define DEBUG_MODE       FALSE'
 to
-#define DEBUG_MODE       TRUE
+'#define DEBUG_MODE       TRUE'
 
 Compile and flash the board.
 
@@ -64,9 +64,9 @@ Target: Your inputs from the transmitter are mapped to a throttel position and r
 the maximal rotation rates are defined in config.h:
 
 // Rates in degrees/second
-#define ROLL_RATE             500
-#define PITCH_RATE            500
-#define YAW_RATE              400
+'#define ROLL_RATE             500'
+'#define PITCH_RATE            500'
+'#define YAW_RATE              400'
 
 Move your transmitter sticks arround and check the throttel range goes from 125 to 250 and the rotation rates according to the defines in config.h. Mapping from transmitter sticks to rotation rates is linear, add expo in your transmitter if desired.
 
