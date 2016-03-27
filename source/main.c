@@ -604,8 +604,9 @@ static THD_FUNCTION(MPUThread, p)
         }
       else
         {
-          if ((LocalRCTarget[THROTTLE_CH]>THROTTLE_MIN)/*|| // Armed and throttle higher than minimun
-              (LocalRCTarget[AUX2_CH]>0)*/)
+//        if ((LocalRCTarget[THROTTLE_CH]>THROTTLE_MIN)/*|| // Armed and throttle higher than minimun
+//            (LocalRCTarget[AUX2_CH]>0)*/)
+          if(1)
             {
 #if LOG
               LogEntry.RCTarget[THROTTLE_CH]=LocalRCTarget[THROTTLE_CH];
