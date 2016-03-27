@@ -14,6 +14,7 @@
 #if LOG
 #include "flash.h"
 #endif
+#include "lowlevel.h"
 
 extern void SetPIDValues(void);
 
@@ -25,6 +26,9 @@ uint8_t Frame[16];
 uint16_t ReceiverData[14];
 volatile int16_t RCTarget[NUMBER_OF_CHANNELS+1];
 volatile bool Armed;
+#if BUZZER
+volatile bool FailSafeState;
+#endif
 uint32_t ReceiverState;
 uint32_t OldReceiverState;
 uint32_t StateCounter;
@@ -37,6 +41,9 @@ static const SerialConfig MyConfig =
   0
 };
 
+#if BUZZER
+    extern binary_semaphore_t BuzzerSemaphore; /* Semaphore for the Buzzer thread */
+#endif
 
 /***********************************/
 /* Routines                        */
@@ -66,21 +73,21 @@ static int16_t Map(int16_t In, int16_t InMin, int16_t InMax, int16_t OutMin,
 static void ReceiverFSM(void)
 {
 
-   if (Armed && (ReceiverData[THROTTLE_CH] <= RC_MIN) && (ReceiverData[RUDDER_CH] <= RC_MIN) &&
-       (ReceiverData[ELEVATOR_CH] < RC_MAX))
+   if (Armed && (ReceiverData[THROTTLE_CH] <= RC_MIN) && (ReceiverData[YAW_CH] <= RC_MIN) &&
+       (ReceiverData[PITCH_CH] < RC_MAX))
      ReceiverState = DISARM;
-   else if (!Armed && (ReceiverData[THROTTLE_CH] <= RC_MIN) && (ReceiverData[RUDDER_CH] >= RC_MAX) &&
-       (ReceiverData[ELEVATOR_CH] < RC_MAX))
+   else if (!Armed && (ReceiverData[THROTTLE_CH] <= RC_MIN) && (ReceiverData[YAW_CH] >= RC_MAX) &&
+       (ReceiverData[PITCH_CH] < RC_MAX))
      ReceiverState = ARM;
-   else if (!Armed && (ReceiverData[THROTTLE_CH] <= RC_MIN) && (ReceiverData[RUDDER_CH] <= RC_MIN) &&
-       (ReceiverData[ELEVATOR_CH] >= RC_MAX))
+   else if (!Armed && (ReceiverData[THROTTLE_CH] <= RC_MIN) && (ReceiverData[YAW_CH] <= RC_MIN) &&
+       (ReceiverData[PITCH_CH] >= RC_MAX))
      ReceiverState = CALIBRATE;
 #if LOG
-   else if (!Armed && (ReceiverData[THROTTLE_CH] >= RC_MAX) && (ReceiverData[RUDDER_CH] >= RC_MAX) &&
-       (ReceiverData[ELEVATOR_CH] < RC_MAX))
+   else if (!Armed && (ReceiverData[THROTTLE_CH] >= RC_MAX) && (ReceiverData[YAW_CH] >= RC_MAX) &&
+       (ReceiverData[PITCH_CH] < RC_MAX))
      ReceiverState = RECORDING;
-   else if (!Armed && (ReceiverData[THROTTLE_CH] >= RC_MAX) && (ReceiverData[RUDDER_CH] <= RC_MIN) &&
-       (ReceiverData[ELEVATOR_CH] < RC_MAX))
+   else if (!Armed && (ReceiverData[THROTTLE_CH] >= RC_MAX) && (ReceiverData[YAW_CH] <= RC_MIN) &&
+       (ReceiverData[PITCH_CH] < RC_MAX))
      ReceiverState = READING;
 #endif
    else
@@ -183,6 +190,10 @@ static bool DecodeFrame(uint8_t *Frame)
                             AUX_RATE);
     RCTarget[STATUS_CH]++;// = Armed;
     chSysUnlock();
+#if BUZZER
+    if (RCTarget[AUX2_CH]<-100)
+      chBSemSignal(&BuzzerSemaphore);
+#endif
     return TRUE;
   }
 
@@ -198,6 +209,10 @@ void FailSafeHandling(void *arg)
     RCTarget[THROTTLE_CH] = THROTTLE_MIN;
     Armed = FALSE;
     TURN_LED_OFF();
+#if BUZZER
+    FailSafeState = TRUE;
+    chBSemSignal(&BuzzerSemaphore);
+#endif
   }
 
 /* ReceiverThread:
@@ -219,13 +234,16 @@ THD_FUNCTION(ReceiverThread, arg)
     memset(ReceiverData, 0xff, sizeof(ReceiverData));
     memset((void *)RCTarget, 0, sizeof(RCTarget));
 
-    sdStart(&SD6, &MyConfig);  // Serial port to receiver
+    sdStart(&RECEIVER_UART, &MyConfig);  // Serial port to receiver
     Armed = FALSE;
 
     ReceiverState = UNKNOWN;
     OldReceiverState = UNKNOWN;
     StateCounter = 0;
     LastByteTime= 0;
+#if BUZZER
+    FailSafeState = FALSE;
+#endif
 
     while (TRUE)
       {
@@ -233,7 +251,7 @@ THD_FUNCTION(ReceiverThread, arg)
         ByteInFrame = 0;
         while (!GotFrame)
           {
-            ByteRead = chnGetTimeout(&SD6, TIME_INFINITE); // Get next byte from serial port
+            ByteRead = chnGetTimeout(&RECEIVER_UART, TIME_INFINITE); // Get next byte from serial port
             CurrentTime = chVTGetSystemTime();
             Frame[ByteInFrame] = (uint8_t) ByteRead;
             if (ByteInFrame == 0)
@@ -257,7 +275,12 @@ THD_FUNCTION(ReceiverThread, arg)
                 }
           }
         if (DecodeFrame(Frame))  // Decode frame
-          chVTSet(&FailsafeTimer, MS2ST(500), FailSafeHandling, 0); // re-start failsafe timer
+          {
+            chVTSet(&FailsafeTimer, MS2ST(500), FailSafeHandling, 0); // re-start failsafe timer
+#if BUZZER
+            FailSafeState = FALSE;
+#endif
+          }
 
       }
   }

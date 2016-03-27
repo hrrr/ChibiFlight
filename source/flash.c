@@ -11,7 +11,7 @@
 
 #include "flash.h"
 #include "drivers/mpu9250.h"
-
+#include "lowlevel.h"
 #if LOG
 
 /***********************************/
@@ -30,16 +30,7 @@ uint8_t *DataBuffer;  // Pointer to the Read/Write buffer
 extern SerialUSBDriver SDU1;
 extern uint16_t LogData[];
 
-/*
- * Maximum speed SPI configuration (18MHz, CPHA=0, CPOL=0, MSb first).
- */
-static const SPIConfig HSSpiConfig =
-  {
-  NULL,
-  GPIOB,
-  3,
-  0
-  };
+
 
 /***********************************/
 /* Routines                        */
@@ -82,7 +73,7 @@ static int SPISendData(SPIDriver *SPIPtr, uint8_t *TxBuf, size_t Size)
 
 static void M25P16WriteRegister(uint8_t Value)
   {
-    SPISendData(&SPID3, &Value, 1);
+    SPISendData(&FLASH_SPI, &Value, 1);
   }
 
 /* M25P16ReadRegister:
@@ -100,7 +91,7 @@ static uint8_t M25P16ReadRegister(uint8_t Address)
     TxBuf[1] = 0xFF;
     TxBuf[2] = 0xFF;
 
-    SPIExchangeData(&SPID3, TxBuf, RxBuf, 3);
+    SPIExchangeData(&FLASH_SPI, TxBuf, RxBuf, 3);
 
     return RxBuf[1];
   }
@@ -120,12 +111,12 @@ static void M25P16ReadPage(uint32_t Address, uint8_t * Buffer)
   {
     uint8_t Command[] = { M25P16_READ_BYTES, (Address >> 16) & 0xFF, (Address >> 8) & 0xFF, Address & 0xFF};
 
-    spiStart(&SPID3, &HSSpiConfig); /* Setup transfer parameters.       */
-    spiSelect(&SPID3); /* Slave Select assertion.          */
-    spiSend(&SPID3, 4, Command); /* Send command                     */
-    spiReceive(&SPID3, PAGE_SIZE, Buffer);
-    spiUnselect(&SPID3); /* Slave Select de-assertion.       */
-    spiStop(&SPID3);
+    spiStart(&FLASH_SPI, &HSSpiConfig); /* Setup transfer parameters.       */
+    spiSelect(&FLASH_SPI); /* Slave Select assertion.          */
+    spiSend(&FLASH_SPI, 4, Command); /* Send command                     */
+    spiReceive(&FLASH_SPI, PAGE_SIZE, Buffer);
+    spiUnselect(&FLASH_SPI); /* Slave Select de-assertion.       */
+    spiStop(&FLASH_SPI);
   }
 
 /* M25P16WritePage:
@@ -138,12 +129,12 @@ static void M25P16WritePage(uint32_t Address, uint8_t * Buffer)
     uint8_t Command[] = { M25P16_PAGE_PROGRAM, (Address >> 16) & 0xFF, (Address >> 8) & 0xFF, Address & 0xFF};
 
     M25P16SetWriteEnable();
-    spiStart(&SPID3, &HSSpiConfig); /* Setup transfer parameters.       */
-    spiSelect(&SPID3); /* Slave Select assertion.          */
-    spiSend(&SPID3, 4, Command); /* Send command                     */
-    spiSend(&SPID3, 256, Buffer);
-    spiUnselect(&SPID3); /* Slave Select de-assertion.       */
-    spiStop(&SPID3);
+    spiStart(&FLASH_SPI, &HSSpiConfig); /* Setup transfer parameters.       */
+    spiSelect(&FLASH_SPI); /* Slave Select assertion.          */
+    spiSend(&FLASH_SPI, 4, Command); /* Send command                     */
+    spiSend(&FLASH_SPI, 256, Buffer);
+    spiUnselect(&FLASH_SPI); /* Slave Select de-assertion.       */
+    spiStop(&FLASH_SPI);
     while(M25P16ReadStatus() & 0x1)
       chThdSleepMicroseconds(100);
   }

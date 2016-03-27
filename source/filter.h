@@ -33,6 +33,8 @@ extern const float Butter2_03_ACoeffs[2];
 extern const float Butter2_03_BCoeffs[3];
 extern const float Butter2_04_ACoeffs[2];
 extern const float Butter2_04_BCoeffs[3];
+extern const float Butter2_16_ACoeffs[2];
+extern const float Butter2_16_BCoeffs[3];
 extern const float Butter2_05_ACoeffs[2];
 extern const float Butter2_05_BCoeffs[3];
 extern const float Butter1_04_ACoeffs[1];

@@ -14,6 +14,7 @@
 #include "config.h"
 #include "mpu9250.h"
 #include "filter.h"
+#include "lowlevel.h"
 
 /***********************************/
 /* Global variables in this module */
@@ -42,7 +43,7 @@ int16_t GyroData[3] = {0,0,0};
 /*
  * Maximum speed SPI configuration (10.5MHz, CPHA=0, CPOL=0, MSb first).
  */
-static const SPIConfig HSSpiConfig =
+static const SPIConfig MPUSPIConfig =
   {
   NULL,
   GPIOC,
@@ -73,7 +74,7 @@ static const SPIConfig LSSpiConfig =
 static int ReadGyroData(void)
   {
     GyroReadCommandBuffer[0] = MPU9250_GYRO_XOUT_H | 0x80;
-    spiStart(&SPID1, &HSSpiConfig); /* Setup transfer parameters.       */
+    spiStart(&SPID1, &MPUSPIConfig); /* Setup transfer parameters.       */
     spiSelect(&SPID1); /* Slave Select assertion.          */
     spiExchange(&SPID1, GYRO_DATA_SIZE, GyroReadCommandBuffer, GyroReadDataBuffer); /* Atomic transfer operations.      */
     spiUnselect(&SPID1); /* Slave Select de-assertion.       */
@@ -141,7 +142,7 @@ static uint8_t MPU9250GetWhoAmI(void)
   {
     if (MPU9250ReadRegister(MPU9250_WHO_AM_I) != MPU9250_WHO_AM_I_REPLY)
       {
-        return -1;
+        return 1;
       }
     return 0;
   }
@@ -185,7 +186,7 @@ static void MPU9250SetSampleRate(uint16_t SampleRateHz)
  * Returns 0 if OK, -1 if error (sensor not found).
  */
 
-int MPU9250Init(void)
+int MPUInit(void)
   {
     uint8_t ReturnValue;
 

@@ -27,6 +27,9 @@ const float Butter2_04_BCoeffs[3]={0.0036217f,0.0072434f,0.0036217f};
 const float Butter2_05_ACoeffs[2]={1.77863f,-0.80080f};
 const float Butter2_05_BCoeffs[3]={0.0055427f,0.0110854f,0.0055427f};
 
+const float Butter2_16_ACoeffs[2]={1.30729f,-0.49181f};
+const float Butter2_16_BCoeffs[3]={0.046132f,0.092264f,0.046132f};
+
 
 const float Butter1_04_ACoeffs[1]={0.88162f};
 const float Butter1_04_BCoeffs[2]={0.059191f,0.059191f};

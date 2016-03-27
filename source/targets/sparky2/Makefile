@@ -86,13 +86,13 @@ endif
 PROJECT = ChibiFlight_Sparky2
 
 # Imported source files and paths
-CHIBIOS = ./source/os/ChibiOS_3.0.2
+CHIBIOS = ./source/os/ChibiOS_16.1.4
 # Startup files.
 include $(CHIBIOS)/os/common/ports/ARMCMx/compilers/GCC/mk/startup_stm32f4xx.mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32F4xx/platform.mk
-include ./source/boards/Sparky2/board.mk
+include ./source/targets/sparky2/board/board.mk
 include $(CHIBIOS)/os/hal/osal/rt/osal.mk
 # RTOS files (optional).
 include $(CHIBIOS)/os/rt/rt.mk
@@ -119,6 +119,7 @@ CSRC = $(STARTUPSRC) \
        source/drivers/spektrum.c \
        source/flash.c \
        source/filter.c \
+       source/targets/sparky2/lowlevel.c \
        source/main.c
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
@@ -206,7 +207,8 @@ UDEFS = -DBOARD_OTG_NOVBUSSENS
 UADEFS =
 
 # List all user directories here
-UINCDIR = source
+UINCDIR = ./source \
+          ./source/targets/sparky2
 
 # List the user directory to look for the libraries here
 ULIBDIR =

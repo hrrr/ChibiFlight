@@ -23,10 +23,17 @@
 #include "config.h"
 #include "mcuconf.h"
 #include "chprintf.h"
+#if BOARD == SPARKY2
 #include "drivers/mpu9250.h"
+#endif
+#if BOARD == MOTOF3
+#include "drivers/mpu6050.h"
+#endif
 #include "drivers/spektrum.h"
 #include "flash.h"
 #include "filter.h"
+#include "lowlevel.h"
+#include "usbcfg.h"
 
 /***********************************/
 /* Global variables in this module */
@@ -55,22 +62,6 @@ struct LogEntry_t
 
 static binary_semaphore_t MPUDataReady; /* Semaphore fro the MPU thread */
 
-// Timer configuration for the OneShot signals to the ESC/Motors
-static PWMConfig pwmcfg= {
-                          COUNTER_FREQ,
-                          COUNTER_WRAP,
-                          NULL, {
-                                 {PWM_OUTPUT_ACTIVE_HIGH, NULL},
-                                 {PWM_OUTPUT_ACTIVE_HIGH, NULL},
-                                 {PWM_OUTPUT_ACTIVE_HIGH, NULL},
-                                 {PWM_OUTPUT_ACTIVE_HIGH, NULL}
-                          },
-                          0,
-                          0,
-#if STM32_PWM_USE_ADVANCED
-                          0
-#endif
-                        };
 // PID Values
 int16_t P[3]= {PID_R_P_0, PID_P_P_0, PID_Y_P_0};
 int16_t I[3]= {PID_R_I_0, PID_P_I_0, PID_Y_I_0};
@@ -86,29 +77,6 @@ int32_t axisPID_P[3];
 int32_t axisPID_I[3];
 int32_t axisPID_D[3];
 #endif
-
-// Prototype of the ISR. Needed for the ExtCfg.
-static void MPUISR(EXTDriver *extp, expchannel_t channel);
-// External interrupt configuration
-// Enable Gyro Interrupt input as edge interrupt
-static const EXTConfig ExternalInterruptConfig= {{
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_RISING_EDGE|EXT_CH_MODE_AUTOSTART|EXT_MODE_GPIOC, MPUISR},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL},
-                                 {EXT_CH_MODE_DISABLED, NULL}
-                                }};
 
 
 typedef struct motorMixer_t
@@ -137,10 +105,6 @@ static const motorMixer_t mixerQuadX[]= {
 /***********************************/
 /* Extern declared variables       */
 /***********************************/
-
-SerialUSBDriver SDU1;
-extern const SerialUSBConfig serusbcfg;
-extern const USBConfig usbcfg;
 extern THD_WORKING_AREA(waReceiverThread, 1024);
 extern THD_WORKING_AREA(LogThread_wa, 512);
 
@@ -214,7 +178,35 @@ static void AddLogEntry(void)
   EntryInPage++;
 }
 #endif
+#if BUZZER
+ binary_semaphore_t BuzzerSemaphore; /* Semaphore for the Buzzer thread */
+/* LogThread:
+ * Thread of the flash log.
+ */
 
+THD_WORKING_AREA(BuzzerThread_wa, 512);
+THD_FUNCTION(BuzzerThread, arg)
+  {
+    (void) arg;
+    chRegSetThreadName("Buzzer");
+    extern volatile bool FailSafeState;
+
+    chBSemObjectInit(&BuzzerSemaphore, TRUE); /* Semaphore initialization before use */
+
+    while (TRUE)
+      {
+        chBSemWait(&BuzzerSemaphore);
+        while((RCTarget[AUX2_CH]<-100) || FailSafeState)
+          {
+            BEEP_ON();
+            chThdSleepMilliseconds(500);
+            BEEP_OFF();
+            chThdSleepMilliseconds(500);
+          }
+      }
+  }
+
+#endif
 #if DEBUG_MODE
 #if CH_DBG_THREADS_PROFILING
 void cmd_threads(BaseSequentialStream *chp)
@@ -302,22 +294,28 @@ static void Thread3(void *arg)
 time_measurement_t IntTime;
 time_measurement_t FilterTime;
 time_measurement_t LoopTime;
+time_measurement_t SampleTime;
 #endif
-
-//uint32_t IntNumber=0;
-static void MPUISR(EXTDriver *extp, expchannel_t channel)
+#if TIME_METER
+bool FirstInterrupt  = TRUE;
+#endif
+void MPUISR(EXTDriver *extp, expchannel_t channel)
 {
   (void) extp;
   (void) channel;
 #if TIME_METER
+  if (FirstInterrupt)
+    FirstInterrupt = FALSE;
+  else
+    chTMStopMeasurementX(&SampleTime);
   chTMStartMeasurementX(&IntTime);
 #endif
-//  IntNumber++;
-//  if ((IntNumber % 4) != 0)
-//    return;
   chSysLockFromISR();
   chBSemSignalI(&MPUDataReady);
   chSysUnlockFromISR();
+#if TIME_METER
+  chTMStartMeasurementX(&SampleTime);
+#endif
 }
 
 /* ResetPID:
@@ -451,6 +449,8 @@ static void pid(int16_t *RCCommand)
       //-----calculate D-term
       Delta=RateError-LastError[axis];
       LastError[axis]=RateError;
+//      Delta=0-GyroData[axis]-LastError[axis];
+//      LastError[axis]=0-GyroData[axis];
       Delta=(Delta*((uint16_t) 0xFFFF/(MICROS_PER_LOOP>>4)))>>4;
 
       DTerm=(Delta * D[axis])>>6;
@@ -511,8 +511,13 @@ static THD_FUNCTION(MPUThread, p)
 {
 
   (void) p;
+#if BOARD == SPARKY2
   register volatile uint32_t *Motors12Enable;
   register volatile uint32_t *Motors34Enable;
+#endif
+#if BOARD == MOTOF3
+  register volatile uint32_t *MotorsEnable;
+#endif
   register volatile uint32_t *Motor1Counter;
   register volatile uint32_t *Motor2Counter;
   register volatile uint32_t *Motor3Counter;
@@ -520,15 +525,15 @@ static THD_FUNCTION(MPUThread, p)
   int16_t LocalRCTarget[NUMBER_OF_CHANNELS+1];
   chRegSetThreadName("MPU Thread");
   chBSemObjectInit(&MPUDataReady, TRUE); /* Semaphore initialization*/
-  extStart(&EXTD1, &ExternalInterruptConfig); /* External interrupt setup */
   StartCalibration(); /* Gyro calibration */
 #if TIME_METER
   chTMObjectInit(&FilterTime);
   chTMObjectInit(&LoopTime);
   chTMObjectInit(&IntTime);
+  chTMObjectInit(&SampleTime);
 #endif
 
-  if (MPU9250Init()!=0) /* Gyro initialization */
+  if (MPUInit()!=0) /* Gyro initialization */
     {
       while (TRUE)
         {
@@ -536,6 +541,8 @@ static THD_FUNCTION(MPUThread, p)
           chThdSleepMilliseconds(1000);  // Toggle LED forever
         }
     }
+  extStart(&EXTD1, &ExternalInterruptConfig); /* External interrupt setup */
+#if BOARD == SPARKY2
   // Motor 4 on timer 1 Slot 4
   Motors12Enable=&(PWMD3.tim->CR1);        // Pointer to motor 1&2 enable
   Motors34Enable=&(PWMD5.tim->CR1);        // Pointer to motor 3&4 enable
@@ -544,6 +551,16 @@ static THD_FUNCTION(MPUThread, p)
   Motor2Counter=&(PWMD3.tim->CCR[3]);    // Pointer to motor 2 counter
   Motor3Counter=&(PWMD5.tim->CCR[3]);    // Pointer to motor 3 counter
   Motor4Counter=&(PWMD5.tim->CCR[2]);    // Pointer to motor 4 counter
+#endif
+#if BOARD == MOTOF3
+  // Motor 4 on timer 1 Slot 4
+  MotorsEnable=&(PWMD3.tim->CR1);        // Pointer to motor 1&2 enable
+  // Motor counters
+  Motor1Counter=&(PWMD3.tim->CCR[1]);    // Pointer to motor 1 counter
+  Motor2Counter=&(PWMD3.tim->CCR[0]);    // Pointer to motor 2 counter
+  Motor3Counter=&(PWMD3.tim->CCR[2]);    // Pointer to motor 3 counter
+  Motor4Counter=&(PWMD3.tim->CCR[3]);    // Pointer to motor 4 counter
+#endif
 
   while (true)
     {
@@ -587,8 +604,8 @@ static THD_FUNCTION(MPUThread, p)
         }
       else
         {
-          if ((LocalRCTarget[THROTTLE_CH]>THROTTLE_MIN)|| // Armed and throttle higher than minimun
-              (LocalRCTarget[AUX2_CH]>0))
+          if ((LocalRCTarget[THROTTLE_CH]>THROTTLE_MIN)/*|| // Armed and throttle higher than minimun
+              (LocalRCTarget[AUX2_CH]>0)*/)
             {
 #if LOG
               LogEntry.RCTarget[THROTTLE_CH]=LocalRCTarget[THROTTLE_CH];
@@ -629,7 +646,12 @@ static THD_FUNCTION(MPUThread, p)
       SET_MOTOR(Motor2Counter, motor[1]);
       SET_MOTOR(Motor3Counter, motor[2]);
       SET_MOTOR(Motor4Counter, motor[3]);
+#if BOARD == SPARKY2
       START_MOTORS(Motors12Enable, Motors34Enable); // Enable timers -> Start motors
+#endif
+#if BOARD == MOTOF3
+      START_MOTORS(MotorsEnable); // Enable timers -> Start motors
+#endif
 #if TIME_METER
       chTMStopMeasurementX(&LoopTime);
 #endif
@@ -650,93 +672,18 @@ int main(void)
   /*
    *  Timers
    */
-
-  // Pin configuration for motors/ESCs
-  palSetPadMode(GPIOB, 0, PAL_MODE_ALTERNATE(2)); // motor 1 -> PB0 : TIM3 CH3
-  palSetPadMode(GPIOB, 1, PAL_MODE_ALTERNATE(2)); // motor 2 -> PB1 : TIM3 CH4
-  palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(2)); // motor 3 -> PA3 : TIM5 CH4
-  palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(2)); // motor 4 -> PA2 : TIM5 CH3
-
-  // Timer 5 used for all motors
-  pwmStart(&PWMD5, &pwmcfg);
-  PWMD5.tim->CR1=0;  // Disable counter
-  PWMD5.tim->CNT=0;  // Reset timer counter
-
-  pwmStart(&PWMD3, &pwmcfg);
-  PWMD3.tim->CR1=0;  // Disable counter
-  PWMD3.tim->CNT=0;  // Reset timer counter
-
-  // Enable timer 1 Channel 0
-  pwmEnableChannel(&PWMD3, 2, THROTTLE_MIN);
-  pwmEnableChannel(&PWMD3, 3, THROTTLE_MIN);
-  pwmEnableChannel(&PWMD5, 2, THROTTLE_MIN);
-  pwmEnableChannel(&PWMD5, 3, THROTTLE_MIN);
-
-  PWMD5.tim->CCMR2|=(7<<4)|(7<<12);  // PWM mode 2
-  PWMD5.tim->CCMR2&=~((1<<3)|(1<<11)); // Clear OC1PE
-  PWMD3.tim->CCMR2|=(7<<4)|(7<<12);  // PWM mode 2
-  PWMD3.tim->CCMR2&=~((1<<3)|(1<<11)); // Clear OC1PE
-
-  /*
-   * SPI1 I/O pins setup.
-   */
-
-  palSetPadMode(GPIOA, 5, PAL_MODE_ALTERNATE(5) |PAL_STM32_OSPEED_HIGHEST);       /* New SCK.     */
-  palSetPadMode(GPIOA, 6, PAL_MODE_ALTERNATE(5) |PAL_STM32_OSPEED_HIGHEST);       /* New MISO.    */
-  palSetPadMode(GPIOA, 7, PAL_MODE_ALTERNATE(5) | PAL_STM32_OSPEED_HIGHEST);       /* New MOSI.    */
-  palSetPadMode(GPIOC, 4, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);       /* New CS.      */
-  palSetPad(GPIOC, 4);
-
-#if LOG
-  /*
-   * SPI2 I/O pins setup.
-   */
-  palSetPadMode(GPIOC, 10, PAL_MODE_ALTERNATE(6) |PAL_STM32_OSPEED_HIGHEST);       /* New SCK.     */
-  palSetPadMode(GPIOC, 11, PAL_MODE_ALTERNATE(6) |PAL_STM32_OSPEED_HIGHEST);       /* New MISO.    */
-  palSetPadMode(GPIOC, 12, PAL_MODE_ALTERNATE(6) | PAL_STM32_OSPEED_HIGHEST);       /* New MOSI.    */
-  palSetPadMode(GPIOB, 3, PAL_MODE_OUTPUT_PUSHPULL | PAL_STM32_OSPEED_HIGHEST);       /* New CS.      */
-  palSetPad(GPIOB, 3);
-#endif
-  /*
-   *  LEDs settings
-   */
-
-  palSetPadMode(GPIOB, 4, PAL_MODE_OUTPUT_PUSHPULL); /* SCK. */
-  palSetPadMode(GPIOB, 5, PAL_MODE_OUTPUT_PUSHPULL); /* SCK. */
-  palSetPadMode(GPIOB, 6, PAL_MODE_OUTPUT_PUSHPULL); /* SCK. */
-  TURN_O_LED_OFF();
-  TURN_LED_OFF();
-  TURN_B2_LED_OFF();
-
-  /*
-   * UART Inverter settings
-   */
-  palSetPadMode(GPIOC, 6, PAL_MODE_OUTPUT_PUSHPULL); /* SCK. */
-  palClearPad(GPIOC, 6);
-  /*
-   * UART Receiver pin
-   */
-  palSetPadMode(GPIOC, 7, PAL_MODE_ALTERNATE(8)); /* UART 6 RX. */
-
-  /*
-   * Activates the USB driver and then the USB bus pull-up on D+.
-   * Note, a delay is inserted in order to not have to disconnect the cable
-   * after a reset.
-   */
-#if (DEBUG_MODE || LOG)
-  sduObjectInit(&SDU1);
-  sduStart(&SDU1, &serusbcfg);
-  usbDisconnectBus(serusbcfg.usbp);
-  chThdSleepMilliseconds(1500);
-  usbStart(serusbcfg.usbp, &usbcfg);
-  usbConnectBus(serusbcfg.usbp);
-#endif
+  InitHardware();
 
 #if LOG
   LogDataPtr=LogData;
   CurrentLogPage=0;
 #endif
 
+#if BUZZER
+  // Start Log Thread: Lowest prio
+  chThdCreateStatic(BuzzerThread_wa, sizeof(BuzzerThread_wa),
+                    NORMALPRIO,BuzzerThread, NULL);
+#endif
 #if LOG
   // Start Log Thread: Lowest prio
   chThdCreateStatic(LogThread_wa, sizeof(LogThread_wa),

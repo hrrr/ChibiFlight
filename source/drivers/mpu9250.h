@@ -92,7 +92,7 @@
 
 /*
  * According to the data sheet the device should return
- * 0x68 as reply to Who am I.
+ * 0x71 as reply to Who am I.
  */
 #define MPU9250_WHO_AM_I_REPLY 0x71
 
@@ -114,7 +114,7 @@ struct SensorGyroData {
     int16_t pitch;
     int16_t yaw;
 };
-int MPU9250Init(void);
+int MPUInit(void);
 bool GetMPUData(void);
 void StartCalibration(void);
 void ResetPID(void);
