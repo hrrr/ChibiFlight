@@ -66,7 +66,7 @@ Ch4: This must be your yaw channel. Neutral at 0x400, yaw to the left at decreas
 
 Ch5: Aux1 channel. Use a three possition switch. In the midlle possition it should be at 0x400. Check in the Target line that Aux1 changes between somthing lower than -100, something arround 0 and somehting higher than 100. This will be used to select one of three PID set of values.
 
-Ch6: Aux2 channel. Use a 2 posstion switch.Check that Aux2 in the Target line changes between somthin lower than 0 and something higher than 0. This will be used to control if PIDs are used at min throttle or not.
+Ch6: Aux2 channel. Use a 2 posstion switch.Check that Aux2 in the Target line changes between somthin lower than 0 and something higher than 0. This will be used to trigger the buzzer.
 
 The other channels are not used in the current firmware.
 
@@ -86,7 +86,7 @@ Gyro: Gyro reading in degress/second. Move your copter an check the readings cha
 Arming disarming works as in cleanflight: Throttle at min, and yaw to the right to arm, throttle at min and yaw to the left to disarm. Check this works.
 Motor outputs in the serial console will change according to the sticks once the copter is armed. The blue LED will light when armed. 
 
-Once this is everything OK, you should change DEBUG_MODE back to FLASE, recompile and reflash.
+Once this is everything OK, you should change DEBUG_MODE back to FALSE, recompile and reflash.
 
 # Usage
 
@@ -95,7 +95,6 @@ ALLWAYS calibrate your gyro before using. Roll backwards, throttle minimun and y
 PIDs: In config.h there are 3 sets of PIDs. You can change wich PID set will be used with your Aux1 channel.
 The _0 set will be used if Aux1 is smaller than -100. _2 if bigger than 100 and the _1 set if between -100 and 100 (tipically in the middle possition of the three possition switch)
 
-AUx2 will change the behaviour at min trottle. If it is higher than 0, the control loop will be run when armed even at min throttle. If negative there is no control at min throttel.
 
 # Blackbox
 
