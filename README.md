@@ -5,7 +5,7 @@ ChibiFlight is basic, small, experimetal, acro-only flight cotroller software fo
 Restrictions:
 
 - Acro only. No stabilized flight modes. No autoleveling. Gyro only .Accelerometer is not used at all.
-- Currently it runs only on Sparky2.
+- Currently it runs only on Sparky2 and MotoF3 boards.
 - Only receiver spported: Sepktrum satellites in 11bit-2048 mode
 - One shot only: ESCs must support One shot (125-250us) mode.
 
