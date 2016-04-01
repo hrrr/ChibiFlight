@@ -51,9 +51,10 @@ THD_FUNCTION(ReceiverThread, arg);
 #define RC_MIN                0x100
 #define RC_NEUTRAL            0x400
 #define RC_MAX                0x700
+#define YAW_DEADBAND          0x30
 
 
-#define ARM_FRAMES            30
+#define ARM_FRAMES            20
 
 #define UNKNOWN                0xFFFFFFFF
 #define ARM                    1

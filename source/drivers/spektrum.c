@@ -20,11 +20,11 @@
 
 */
 
-#include <drivers/spektrum.h>
 #include <string.h>
 
 #include "ch.h"
 #include "hal.h"
+#include <drivers/spektrum.h>
 #include "config.h"
 #include "drivers/mpu9250.h"
 #if LOG
@@ -198,8 +198,14 @@ static bool DecodeFrame(uint8_t *Frame)
                                -PITCH_RATE, PITCH_RATE);
     RCTarget[ELEVATOR_CH] = Map(ReceiverData[ELEVATOR_CH], RC_MIN, RC_MAX,
                                 -ROLL_RATE, ROLL_RATE);
-    RCTarget[RUDDER_CH] = Map(ReceiverData[RUDDER_CH], RC_MIN, RC_MAX,
-                              -YAW_RATE, YAW_RATE);
+    if ((ReceiverData[RUDDER_CH]>(RC_NEUTRAL+YAW_DEADBAND))||
+        (ReceiverData[RUDDER_CH]<(RC_NEUTRAL-YAW_DEADBAND)))
+      RCTarget[RUDDER_CH] = Map(ReceiverData[RUDDER_CH], RC_MIN, RC_MAX,
+                                -YAW_RATE, YAW_RATE);
+    else
+      RCTarget[RUDDER_CH] = Map(RC_NEUTRAL, RC_MIN, RC_MAX,
+                                -YAW_RATE, YAW_RATE);
+
     RCTarget[AUX1_CH] = Map(ReceiverData[AUX1_CH], RC_MIN, RC_MAX, -AUX_RATE,
                             AUX_RATE);
     RCTarget[AUX2_CH] = Map(ReceiverData[AUX2_CH], RC_MIN, RC_MAX, -AUX_RATE,
@@ -227,7 +233,9 @@ void FailSafeHandling(void *arg)
     TURN_LED_OFF();
 #if BUZZER
     FailSafeState = TRUE;
-    chBSemSignal(&BuzzerSemaphore);
+    chSysLockFromISR();
+    chBSemSignalI(&BuzzerSemaphore);
+    chSysUnlockFromISR();
 #endif
   }
 

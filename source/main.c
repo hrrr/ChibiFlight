@@ -585,6 +585,7 @@ static THD_FUNCTION(MPUThread, p)
       LocalRCTarget[AUX2_CH]=RCTarget[AUX2_CH];
       LocalRCTarget[STATUS_CH]=RCTarget[STATUS_CH];
       chSysUnlock();                        // Unlock
+
       if (!Armed)
         {
 #if CALIBRATE_ESC
