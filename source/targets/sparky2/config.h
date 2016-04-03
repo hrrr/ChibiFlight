@@ -17,6 +17,7 @@
 
 //Debug mode outputs some statistics over USB Serial
 #define DEBUG_MODE       FALSE
+#define AIRMODE          TRUE
 // Calibrate OneShot ESC to 125-250 range
 #define CALIBRATE_ESC    FALSE
 // Log enables the code to save the flight log on the on board spi flash

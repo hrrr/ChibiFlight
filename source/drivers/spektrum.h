@@ -54,7 +54,7 @@ THD_FUNCTION(ReceiverThread, arg);
 #define YAW_DEADBAND          0x30
 
 
-#define ARM_FRAMES            20
+#define ARM_FRAMES            10
 
 #define UNKNOWN                0xFFFFFFFF
 #define ARM                    1

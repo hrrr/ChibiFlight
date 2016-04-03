@@ -477,7 +477,7 @@ static void pid(int16_t *RCCommand)
 
 static void MixTable(int16_t *RCCommand)
 {
-  int16_t maxMotor;
+  int16_t maxMotor, MinMotor, Diff;
   uint32_t i;
   for (i=0; i<4; i++)
     {
@@ -493,11 +493,34 @@ static void MixTable(int16_t *RCCommand)
 
   if (maxMotor>THROTTLE_MAX)
     for (i=0; i<4; i++)
-      motor[i]-=maxMotor-THROTTLE_MAX;
+      motor[i]-= maxMotor-THROTTLE_MAX;
 
-  for (i=0; i<4; i++)
-    if (motor[i]<THROTTLE_MIN_PID)
-      motor[i]= THROTTLE_MIN_PID;
+  MinMotor=motor[0];
+  for (i=1; i<4; i++)
+    if (motor[i]<MinMotor)
+      MinMotor=motor[i];
+
+  if(MinMotor<THROTTLE_MIN_PID)
+    {
+#if AIRMODE
+      Diff = THROTTLE_MIN_PID - MinMotor;
+      Diff /= 2;
+      for (i=0; i<4; i++)
+        {
+          motor[i] += Diff;
+          if (motor[i] < THROTTLE_MIN_PID)
+            motor[i]= THROTTLE_MIN_PID;
+          if (motor[i] > THROTTLE_MAX)
+            motor[i] = THROTTLE_MAX;
+        }
+#else
+      for (i=0; i<4; i++)
+        {
+          if (motor[i] < THROTTLE_MIN_PID)
+            motor[i]= THROTTLE_MIN_PID;
+        }
+#endif
+    }
 }
 
 /* MPUThread:
